@@ -9,14 +9,13 @@ let Engine = (function() {
         this.P = 0; // pressure
         this.Fx = 0; 
         this.Fy = 0;
-        this.forcedVelocity = false;
     
         this.update = function(dt) {
             this.x += this.Vx * dt;
             this.y += this.Vy * dt
         }
 
-        this.reset = function(Ax, Ay) {
+        this.reset = function() {
             this.Fx = 0;
             this.Fy = 0;
             this.rho = m * Wpoly6(0);
@@ -51,11 +50,6 @@ let Engine = (function() {
                 for (let j = 0; j < ny; j++) {
                     let c = this.cells[i+j*nx]
                     this.computeNeighbors(i, j, c);
-                    /*for ( let n of c.halfNeighbors) {
-                        if (n == null) {
-                            let a = 1;
-                        }
-                    }*/
                 }
             }
         }
@@ -77,10 +71,14 @@ let Engine = (function() {
                 c.numParticles = 0;
         }
 
+        this.getCellFromLocation = function(x, y) {
+            let i = Math.floor(this.nx * x / this.w);
+            let j = Math.floor(this.ny * y / this.h);
+            return this.cells[i + j*this.nx];
+        }
+
         this.addParticleToCell = function(p) {
-            let i = parseInt(this.nx * p.x / this.w);
-            let j = parseInt(this.ny * p.y / this.h);
-            let c = this.cells[i + j*this.nx];
+            let c = this.getCellFromLocation(p.x, p.y);
             if (c.numParticles < MAX_PARTICLES_IN_CELL) {
                 c.particles[c.numParticles++] = p;
             }
@@ -104,26 +102,17 @@ let Engine = (function() {
     let mu = 3;				// Viscosity
     let gx = 0;				// Gravity-x
     let gy = -32.2 * 50 / 100;				// Gravity-y
+
     let xmax, ymax;
     let domainScale = 30;
     let gridCellSize = h;
+
     let lastTime = performance.now();
-    /*let Grid grid;
-    private bool forceVelocityOn = false;
-    private Cell forceVelocityCell;
-    private double forceVx;
-    private double forceVy;
-    private Random rand = new Random();
-    private int numCircleDrawPoints = 8;
-    private double drawScale;
-    private double[] drawCos = new double[16];
-    private double[] drawSin = new double[16];
-    private double[] SlowColor = new double[3];
-    private double[] FastColor = new double[3];
-    FluidSimSettings.DrawMethod DrawMethod;
-    Timer t = new Timer();
-    bool drip = false;
-    Boat boat;*/
+
+    let forceVelocityOn = false;
+    let forceVelocityCell = null;
+    let forceVx = 0;
+    let forceVy = 0;
 
     // assumption: r2 is less than h2
     function Wpoly6(r2) {
@@ -198,6 +187,23 @@ let Engine = (function() {
         }
     }
 
+    function AddWallForces(p1) {
+
+        if (p1.x < h) {
+            p1.Fx -= m * p1.P / p1.rho * Wspiky_grad2(p1.x) * p1.x;
+        }
+        else if (p1.x > xmax - h) {
+            let r = xmax - p1.x;
+            p1.Fx += m * p1.P / p1.rho * Wspiky_grad2(r) * r;
+        }
+        if (p1.y < h) {
+            p1.Fy -= m * p1.P / p1.rho * Wspiky_grad2(p1.y) * p1.y;
+        } else if (p1.y > ymax - h) {
+            let r = ymax - p1.y;
+            p1.Fy += m * p1.P / p1.rho * Wspiky_grad2(r) * r;
+        }
+    }
+
     function CalcForces() {
         for (const cell of grid.cells) {
             for (let i = 0; i < cell.numParticles; i++) {
@@ -214,8 +220,22 @@ let Engine = (function() {
                         AddForces(p1, p2);
                     }
                 }
+                AddWallForces(p1);
             }
         }
+    }
+
+    function CalcForcedVelocity() {
+        if (!forceVelocityOn || forceVelocityCell == null)
+            return;
+        for (let i = 0; i < forceVelocityCell.numParticles; i++) {
+            let p = forceVelocityCell.particles[i];
+            p.Vx = forceVx;
+            p.Vy = forceVy;
+            p.Fx = 0;
+            p.Fy = 0;
+        }
+        forceVelocityOn = false;
     }
 
     function UpdatePosition(dT) {
@@ -226,8 +246,8 @@ let Engine = (function() {
             p.Vx += Ax * dT;
             p.Vy += Ay * dT;
 
-            p.x += p.Vx * dT;
-            p.y += p.Vy * dT;
+            p.x += (p.Vx + 0.5 * Ax * dT) * dT;
+            p.y += (p.Vy + 0.5 * Ay * dT) * dT;
 
             if (p.x < 0) {
                 p.x = 0 + 1e-6;
@@ -247,7 +267,7 @@ let Engine = (function() {
 
             grid.addParticleToCell(p);
             
-            p.reset(Ax, Ay);
+            p.reset();
         }
     }
 
@@ -274,17 +294,25 @@ let Engine = (function() {
         doPhysics : function() {
             CalcDensity();
             CalcForces();
+            CalcForcedVelocity();
             grid.reset();
             let now = performance.now();
-            UpdatePosition((now - lastTime) * 0.001);
+            let dT = now - lastTime;
             lastTime = now;
+            UpdatePosition(dT * 0.001);
         },
 
-        update: function(i, position) {
+        getParticlePosition: function(i, position) {
             let p = particles[i];
-            //p.update(1);
             position.x = p.x * domainScale;
             position.y = p.y * domainScale;
+        },
+
+        forceVelocity: function(x, y, Vx, Vy) {
+            forceVelocityOn = true;
+            forceVelocityCell = grid.getCellFromLocation(x / domainScale, ymax - y / domainScale);
+            forceVx = Vx;
+            forceVy = -Vy;
         }
     }
 })();

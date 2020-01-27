@@ -3,13 +3,11 @@
     window.addEventListener('load', init, false);
 
     var engine = Engine;
-    var width, height, scene, camera, renderer, cube, material, circle, geometry;
-
-    var meshes;
+    var width, height, scene, camera, renderer;
+    var material, circle, meshes;
 
     function init() {
         createScene();
-        //addParticles(5000);
         addParticles(5000);
         doLoop();
     }
@@ -26,15 +24,12 @@
 
         renderer = new THREE.WebGLRenderer();
         renderer.setSize(width, height);
+        renderer.domElement.addEventListener('mousemove', handleMouseMove);
 
-        scene = new THREE.Scene();
-
-        material = new THREE.LineBasicMaterial( { color: 0x00ff00 } );
+        material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
         circle = new THREE.CircleBufferGeometry(5, 8);
 
-        geometry = new THREE.BoxGeometry( 100, 100, 1 );
-        cube = new THREE.Mesh( geometry, material );
-        //scene.add( cube );
+        scene = new THREE.Scene();
         renderer.render(scene, camera);
 
         document.body.appendChild( renderer.domElement );
@@ -55,11 +50,13 @@
         camera.top = height;
         camera.bottom = 0;
         camera.updateProjectionMatrix();
-        // cube.scale.x = cube.scale.y * aspectRatio;
-        renderer.render(scene, camera); // TODO move to animation loop?
+        //renderer.render(scene, camera); // TODO remove?
     }
 
-    //var particles;
+    function handleMouseMove(e) {
+        engine.forceVelocity(e.clientX, e.clientY, e.movementX, e.movementY);
+        // TODO incorporate window.devicePixelRatio
+    }
 
     function addParticles(n) {
         meshes = new Array(n);
@@ -70,37 +67,12 @@
             meshes[i] = m;
             scene.add(m);
         }
-
-        /*particles = new Array(n);
-        for (var i = 0; i < n; i++)
-            particles[i] = new Particle();*/
     }
-
-    /*function Particle() {
-        this.Vx = Math.random()-0.5; // current velocity
-        this.Vy = Math.random()-0.5;
-        this.rho = 0; // density
-        this.P = 0; // pressure
-        this.Fx = 0; 
-        this.Fy = 0;
-        this.forcedVelocity = false;
-        this.mesh = new THREE.Mesh(circle, material);
-        this.mesh.position.x = Math.random()*width-width/2;
-        this.mesh.position.y = Math.random()*height-height/2;
-        scene.add(this.mesh);
-
-        this.update = function(dt) {
-            this.mesh.position.x += this.Vx * dt;
-            this.mesh.position.y += this.Vy * dt
-        }
-    }*/
 
     function doLoop() {
         engine.doPhysics();
-        var dT = 1;
         for (var i = 0; i < meshes.length; i++)
-            engine.update(i, meshes[i].position)
-            //particles[i].update(dT);
+            engine.getParticlePosition(i, meshes[i].position)
         renderer.render(scene, camera);
         requestAnimationFrame(doLoop);
     }
