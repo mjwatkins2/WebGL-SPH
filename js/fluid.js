@@ -2,9 +2,11 @@
 
     window.addEventListener('load', init, false);
 
-    var engine = Engine;
-    var width, height, scene, camera, renderer;
-    var material, circle, meshes;
+    let engine = Engine;
+    let scene, camera, renderer;
+    let material, circle, meshes;
+    let left, right, bottom, top;
+    let windowMovementInterval = -1;
 
     function init() {
         createScene();
@@ -13,13 +15,15 @@
     }
 
     function createScene() {
-        width = window.innerWidth;
-        height = window.innerHeight;
-        aspectRatio = width/height;
-        nearPlane = 0;
-        farPlane = 1;
+        computeWindowArea();
+        engine.init(screen.width, screen.height, left, right, bottom, top);
 
-        camera = new THREE.OrthographicCamera( 0, width, height, 0, nearPlane, farPlane);
+        let width = right-left;
+        let height = top-bottom;
+        aspectRatio = width/height;
+        let nearPlane = 0;
+        let farPlane = 1;
+        camera = new THREE.OrthographicCamera( left, right, top, bottom, nearPlane, farPlane);
         camera.position.z = 1
 
         renderer = new THREE.WebGLRenderer();
@@ -35,26 +39,61 @@
         document.body.appendChild( renderer.domElement );
 
         window.addEventListener('resize', handleWindowResize, false);
+        window.addEventListener('mouseout', handleMouseOut, false);
+        window.addEventListener('visibilitychange', handleVisibilityChange, false);
+    }
 
-        engine.init(width, height);
+    function handleVisibilityChange(e) {
+        console.log('handleVisibilityChange: ' + document.hidden);
+    }
+
+    function handleMouseOut(e){
+        // if the mouse leaves the window, watch for window movement on screen and adjust the simulation domain appropriately
+        if (windowMovementInterval == -1 && e.toElement == null && e.relatedTarget == null) { // really outside the window
+            windowMovementInterval = setInterval(function() {
+                let prevL = left;
+                let prevR = right;
+                let prevB = bottom;
+                let prevT = top;
+                computeWindowArea();
+                if (left != prevL || right != prevR || bottom != prevB || top != prevT) {
+                    handleWindowResize();
+                }
+            }, 10);
+        }
     }
 
     function handleWindowResize() {
-        width = window.innerWidth;
-        height = window.innerHeight;
+        computeWindowArea();
+        engine.resize(left, right, bottom, top);
+        let width = right-left;
+        let height = top-bottom;
         aspectRatio = width/height;
         renderer.setSize(width, height);
+
         camera.aspect = aspectRatio;
-        camera.left = 0;
-        camera.right = width;
-        camera.top = height;
-        camera.bottom = 0;
+        camera.left = left;
+        camera.right = right;
+        camera.top = top;
+        camera.bottom = bottom;
         camera.updateProjectionMatrix();
-        //renderer.render(scene, camera); // TODO remove?
+    }
+
+    function computeWindowArea() {
+        left = window.screenX;
+        right = window.screenX + window.outerWidth;
+        // positive screen y is measured top-down, positive fluid sim y is measured bottom-up
+        let topBarsHeightEstimate = window.outerHeight - window.innerHeight; // assume address bar, toolbars, favs, menus, are all at the top
+        bottom = screen.height - window.screenY - window.outerHeight;
+        top = screen.height - window.screenY - topBarsHeightEstimate;
     }
 
     function handleMouseMove(e) {
-        engine.forceVelocity(e.clientX, e.clientY, e.movementX, e.movementY);
+        if (windowMovementInterval != -1) {
+            clearInterval(windowMovementInterval);
+            windowMovementInterval = -1;
+        }
+        engine.forceVelocity(e.clientX+left, e.clientY/*+bottom*/, e.movementX, e.movementY);
         // TODO incorporate window.devicePixelRatio
     }
 

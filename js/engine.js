@@ -1,8 +1,8 @@
 let Engine = (function() {
 
     function Particle() {
-        this.x = Math.random()*xmax-xmax/2;
-        this.y = Math.random()*ymax-ymax/2;
+        this.x = Math.random()*(xmax-xmin)+xmin;
+        this.y = Math.random()*(ymax-ymin)+ymin;
         this.Vx = Math.random()-0.5; // current velocity
         this.Vy = Math.random()-0.5;
         this.rho = 0; // density
@@ -25,12 +25,12 @@ let Engine = (function() {
     function Grid() {
 
         function Cell() {
-            this.particles = new Array(MAX_PARTICLES_IN_CELL);
+            this.particles = new Array(INIT_MAX_PARTICLES_IN_CELL);
             this.halfNeighbors = new Array(0);
             this.numParticles = 0;
         }
 
-        const MAX_PARTICLES_IN_CELL = 50;
+        const INIT_MAX_PARTICLES_IN_CELL = 50;
         this.cells = [];
         this.nx = 0; // # of cells in x direction
         this.ny = 0; // # of cells in y direction
@@ -79,9 +79,10 @@ let Engine = (function() {
 
         this.addParticleToCell = function(p) {
             let c = this.getCellFromLocation(p.x, p.y);
-            if (c.numParticles < MAX_PARTICLES_IN_CELL) {
+            if (c != null)
                 c.particles[c.numParticles++] = p;
-            }
+            else
+                console.log("Undefined grid cell!");
         }
     }
 
@@ -101,9 +102,10 @@ let Engine = (function() {
     let rho0 = 0;			// Rest density
     let mu = 3;				// Viscosity
     let gx = 0;				// Gravity-x
-    let gy = -32.2 * 50 / 100;				// Gravity-y
+    let gy = -32.2 * 0.5;				// Gravity-y
 
-    let xmax, ymax;
+    let xmin, xmax, ymin, ymax; // viewable area in which the fluid can flow
+    let xlimit, ylimit; // max possible values of xmax and ymax
     let domainScale = 30;
     let gridCellSize = h;
 
@@ -189,15 +191,17 @@ let Engine = (function() {
 
     function AddWallForces(p1) {
 
-        if (p1.x < h) {
-            p1.Fx -= m * p1.P / p1.rho * Wspiky_grad2(p1.x) * p1.x;
+        if (p1.x < xmin + h) {
+            let r = p1.x - xmin;
+            p1.Fx -= m * p1.P / p1.rho * Wspiky_grad2(r) * r;
         }
         else if (p1.x > xmax - h) {
             let r = xmax - p1.x;
             p1.Fx += m * p1.P / p1.rho * Wspiky_grad2(r) * r;
         }
-        if (p1.y < h) {
-            p1.Fy -= m * p1.P / p1.rho * Wspiky_grad2(p1.y) * p1.y;
+        if (p1.y < ymin + h) {
+            let r = p1.y - ymin;
+            p1.Fy -= m * p1.P / p1.rho * Wspiky_grad2(r) * r;
         } else if (p1.y > ymax - h) {
             let r = ymax - p1.y;
             p1.Fy += m * p1.P / p1.rho * Wspiky_grad2(r) * r;
@@ -249,16 +253,16 @@ let Engine = (function() {
             p.x += (p.Vx + 0.5 * Ax * dT) * dT;
             p.y += (p.Vy + 0.5 * Ay * dT) * dT;
 
-            if (p.x < 0) {
-                p.x = 0 + 1e-6;
+            if (p.x < xmin) {
+                p.x = xmin + 1e-6;
                 p.Vx *= -0.5;
             }
             else if (p.x > xmax) {
                 p.x = xmax - 1e-6;
                 p.Vx *= -0.5;
             }
-            if (p.y < 0) {
-                p.y = 0 + 1e-6;
+            if (p.y < ymin) {
+                p.y = ymin + 1e-6;
                 p.Vy *= -0.5;
             } else if (p.y > ymax) {
                 p.y = ymax - 1e-6;
@@ -273,14 +277,30 @@ let Engine = (function() {
 
     return {
 
-        init: function(width, height) {
-            xmax = width / domainScale;
-            ymax = height / domainScale;
+        init: function(width, height, left, right, bottom, top) {
+            while (left >= width) {
+                // assume two identical monitor setup arranged horizontally
+                width += width;
+            }
+            xlimit = width / domainScale;
+            xmin = left / domainScale;
+            xmax = right / domainScale;
 
-            let numGridCellsX = Math.floor(xmax / gridCellSize);
-            let numGridCellsY = Math.floor(ymax / gridCellSize);
+            ylimit = height / domainScale;
+            ymin = bottom / domainScale;
+            ymax = top / domainScale;
+
+            let numGridCellsX = Math.floor(xlimit / gridCellSize);
+            let numGridCellsY = Math.floor(ylimit / gridCellSize);
             grid = new Grid();
-            grid.init(numGridCellsX, numGridCellsY, xmax, ymax);
+            grid.init(numGridCellsX, numGridCellsY, xlimit, ylimit);
+        },
+
+        resize: function(left, right, bottom, top) {
+            xmin = Math.max(left / domainScale, 0);
+            xmax = Math.min(right / domainScale, xlimit);
+            ymin = Math.max(bottom / domainScale, 0);
+            ymax = Math.min(top / domainScale, ylimit);
         },
 
         addParticles: function(n) {
@@ -305,7 +325,7 @@ let Engine = (function() {
         getParticlePosition: function(i, position) {
             let p = particles[i];
             position.x = p.x * domainScale;
-            position.y = p.y * domainScale;
+            position.y = p.y * domainScale - ymin;
         },
 
         forceVelocity: function(x, y, Vx, Vy) {
