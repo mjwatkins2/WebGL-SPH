@@ -7,7 +7,8 @@ window.addEventListener('load', init, false);
 let engine = Engine;
 let scene, camera, renderer;
 let material, circle, meshes;
-let left, right, bottom, top;
+let left, right, bottom, top, zoomX, zoomY;
+let initialOrientation;
 let windowMovementInterval = -1;
 let gui = new GUI();
 let fluidParams = {
@@ -30,19 +31,19 @@ function init() {
 }
 
 function createScene() {
+    initialOrientation = screen.orientation.angle;
     computeWindowArea();
     engine.init(screen.width, screen.height, left, right, bottom, top);
 
     let width = right-left;
     let height = top-bottom;
-    let aspectRatio = width/height;
     let nearPlane = 0;
     let farPlane = 1;
     camera = new THREE.OrthographicCamera( left, right, top, bottom, nearPlane, farPlane);
     camera.position.z = 1
 
     renderer = new THREE.WebGLRenderer();
-    renderer.setSize(width, height);
+    renderer.setSize(width * zoomX, height * zoomY);
     renderer.domElement.addEventListener('mousemove', handleMouseMove);
 
     material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
@@ -80,12 +81,35 @@ function handleMouseOut(e){
 
 function handleWindowResize() {
     computeWindowArea();
-    engine.resize(left, right, bottom, top);
+
     let width = right-left;
     let height = top-bottom;
     let aspectRatio = width/height;
-    renderer.setSize(width, height);
 
+    let angleDiff = screen.orientation.angle - initialOrientation;
+    if (angleDiff == 90) {
+        engine.resize(bottom, top, left, right);
+        camera.rotation.z = Math.PI/2;
+        camera.position.x = height;
+    } else if (angleDiff == -90) {
+        // TODO differentiate the two angles
+        engine.resize(bottom, top, left, right);
+        camera.rotation.z = Math.PI/2;
+        camera.position.x = height;
+    } else if (Math.abs(angleDiff) == 180) {
+        // TODO differentiate 0 and 180 deg
+        engine.resize(left, right, bottom, top);
+        renderer.setSize(width * zoomX, height * zoomY);
+        camera.rotation.z = 0;
+        camera.position.x = 0;
+    } else {
+        engine.resize(left, right, bottom, top);
+        renderer.setSize(width * zoomX, height * zoomY);
+        camera.rotation.z = 0;
+        camera.position.x = 0;
+    }
+    
+    renderer.setSize(width * zoomX, height * zoomY);
     camera.aspect = aspectRatio;
     camera.left = left;
     camera.right = right;
@@ -95,12 +119,19 @@ function handleWindowResize() {
 }
 
 function computeWindowArea() {
-    left = window.screenX;
-    right = window.screenX + window.outerWidth;
-    // positive screen y is measured top-down, positive fluid sim y is measured bottom-up
-    let topBarsHeightEstimate = window.outerHeight - window.innerHeight; // assume address bar, toolbars, favs, menus, are all at the top
+    // the width and height pad/bars estimate can be calculated less than zero on mobile due to zooming
+    let widthPadEstimate = Math.max(window.outerWidth - window.innerWidth, 0);
+    left = window.screenX + widthPadEstimate/2;
+    right = window.screenX + window.outerWidth - widthPadEstimate/2;
+    // note positive screen y is measured top-down, positive fluid sim y is measured bottom-up
+    // assume address bar, toolbars, favs, menus, are all at the top
+    let topBarsHeightEstimate = Math.max(window.outerHeight - window.innerHeight, 0);
     bottom = screen.height - window.screenY - window.outerHeight;
     top = screen.height - window.screenY - topBarsHeightEstimate;
+
+    // on mobile, innerWidth/Height can be larger than outerWidth/Height, requiring some renderer zooming
+    zoomX = window.innerWidth > window.outerWidth ? window.innerWidth / window.outerWidth : 1;
+    zoomY = window.innerHeight > window.outerHeight ? window.innerHeight / window.outerHeight : 1;
 }
 
 function handleMouseMove(e) {

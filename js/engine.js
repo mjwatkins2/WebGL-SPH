@@ -54,6 +54,13 @@ let Engine = (function() {
             }
         }
 
+        /* References are stored to half of the neighboring cells of center cell C:
+        ^ y
+        |___________
+        |_1_|_2_|_3_|
+        |___|_C_|_0_|
+        |___|___|___| --> x
+        */
         this.computeNeighbors = function(i, j, c) {
             let idx = i + j*this.nx;
             if (i != this.nx - 1) {
