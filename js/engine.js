@@ -67,8 +67,17 @@ let Engine = (function() {
         }
 
         this.reset = function() {
-            for (let c of this.cells)
+            for (let c of this.cells) {
                 c.numParticles = 0;
+            }
+        }
+
+        // also clears references to particles
+        this.hardreset = function() {
+            for (let c of this.cells) {
+                c.numParticles = 0;
+                c.particles = new Array(INIT_MAX_PARTICLES_IN_CELL);
+            }
         }
 
         this.getCellFromLocation = function(x, y) {
@@ -102,7 +111,7 @@ let Engine = (function() {
     let rho0 = 0;			// Rest density
     let mu = 3;				// Viscosity
     let gx = 0;				// Gravity-x
-    let gy = -32.2 * 0.5;				// Gravity-y
+    let gy = -20;				// Gravity-y
 
     let xmin, xmax, ymin, ymax; // viewable area in which the fluid can flow
     let xlimit, ylimit; // max possible values of xmax and ymax
@@ -165,7 +174,7 @@ let Engine = (function() {
                         AddDensity(p1, p2);
                     }
                 }
-                p1.P = k * (p1.rho - rho0);
+                p1.P = Math.max(k * (p1.rho - rho0), 0);
             }
         }
     }
@@ -303,9 +312,19 @@ let Engine = (function() {
             ymax = Math.min(top / domainScale, ylimit);
         },
 
-        addParticles: function(n) {
-            particles = new Array(n);
-            for (let i = 0; i < n; i++) {
+        setNumParticles: function(n) {
+            let i0 = 0;
+            if (particles == undefined) {
+                particles = new Array(n);
+            }
+            else {
+                if (n < particles.length) {
+                    grid.hardreset();
+                    particles.length = n;
+                }
+                i0 = particles.length;
+            }
+            for (let i = i0; i < n; i++) {
                 particles[i] = new Particle();
                 particles[i].rho = m * Wpoly6(0);
             }
@@ -333,6 +352,20 @@ let Engine = (function() {
             forceVelocityCell = grid.getCellFromLocation(x / domainScale, ymax - y / domainScale);
             forceVx = Vx;
             forceVy = -Vy;
+        },
+
+        setGravity: function(gravityX, gravityY) {
+            gx = gravityX;
+            gy = gravityY;
+        },
+
+        setFluidProperties: function(mass, gasConstant, restDensity, viscosity) {
+            m = mass;
+            k = gasConstant;
+            rho0 = restDensity;
+            mu = viscosity;
         }
     }
 })();
+
+export default Engine;
