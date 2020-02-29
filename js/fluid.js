@@ -44,7 +44,6 @@ function createScene() {
 
     renderer = new THREE.WebGLRenderer();
     renderer.setSize(width * zoomX, height * zoomY);
-    renderer.domElement.addEventListener('mousemove', handleMouseMove);
 
     material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
     circle = new THREE.CircleBufferGeometry(5, 8);
@@ -57,6 +56,10 @@ function createScene() {
     window.addEventListener('resize', handleWindowResize, false);
     window.addEventListener('mouseout', handleMouseOut, false);
     window.addEventListener('visibilitychange', handleVisibilityChange, false);
+    renderer.domElement.addEventListener('mousemove', handleMouseMove, false);
+    renderer.domElement.addEventListener('touchmove', handleTouchMove, false);
+    renderer.domElement.addEventListener('touchend', handleTouchEnd, false);
+    renderer.domElement.addEventListener('touchcancel', handleTouchEnd, false);
 }
 
 function handleVisibilityChange(e) {
@@ -91,22 +94,24 @@ function handleWindowResize() {
         engine.resize(bottom, top, left, right);
         camera.rotation.z = Math.PI/2;
         camera.position.x = height;
+        camera.position.y = 0;
     } else if (angleDiff == -90) {
-        // TODO differentiate the two angles
         engine.resize(bottom, top, left, right);
-        camera.rotation.z = Math.PI/2;
-        camera.position.x = height;
+        camera.rotation.z = -Math.PI/2;
+        camera.position.x = 0;
+        camera.position.y = width;
     } else if (Math.abs(angleDiff) == 180) {
-        // TODO differentiate 0 and 180 deg
         engine.resize(left, right, bottom, top);
         renderer.setSize(width * zoomX, height * zoomY);
-        camera.rotation.z = 0;
-        camera.position.x = 0;
+        camera.rotation.z = Math.PI;
+        camera.position.x = width;
+        camera.position.y = height;
     } else {
         engine.resize(left, right, bottom, top);
         renderer.setSize(width * zoomX, height * zoomY);
         camera.rotation.z = 0;
         camera.position.x = 0;
+        camera.position.y = 0;
     }
     
     renderer.setSize(width * zoomX, height * zoomY);
@@ -132,6 +137,14 @@ function computeWindowArea() {
     // on mobile, innerWidth/Height can be larger than outerWidth/Height, requiring some renderer zooming
     zoomX = window.innerWidth > window.outerWidth ? window.innerWidth / window.outerWidth : 1;
     zoomY = window.innerHeight > window.outerHeight ? window.innerHeight / window.outerHeight : 1;
+    let isProbablyMobileDevice = window.innerWidth > window.outerWidth || window.innerHeight > window.outerHeight;
+    if (isProbablyMobileDevice) {
+        // also on mobile, just use the entire screen due to keyboards and url input boxes taking up lots'a'space
+        left = 0;
+        right = screen.width;
+        bottom = 0;
+        top = screen.height;
+    }
 }
 
 function handleMouseMove(e) {
@@ -140,7 +153,34 @@ function handleMouseMove(e) {
         windowMovementInterval = -1;
     }
     engine.forceVelocity(e.clientX+left, e.clientY/*+bottom*/, e.movementX, e.movementY);
-    // TODO incorporate window.devicePixelRatio
+}
+
+let lastX = undefined;
+let lastY = undefined;
+
+function handleTouchMove(e) {
+    if (windowMovementInterval != -1) {
+        clearInterval(windowMovementInterval);
+        windowMovementInterval = -1;
+    }
+    if (e.touches.length > 0) {
+        let touch = e.changedTouches[0];
+        let tx = touch.clientX/zoomX;
+        let ty = touch.clientY/zoomY;
+        if (lastX != undefined && lastY != undefined) {
+            let dx = tx - lastX;
+            let dy = ty - lastY;
+            engine.forceVelocity(tx+left, ty/*+bottom*/, dx, dy);
+        }
+        lastX = tx;
+        lastY = ty;
+    }
+    // TODO incorporate window.devicePixelRatio?
+}
+
+function handleTouchEnd(e) {
+    lastX = undefined;
+    lastY = undefined;
 }
 
 function setNumParticles(n) {
