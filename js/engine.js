@@ -9,11 +9,9 @@ let Engine = (function() {
         this.P = 0; // pressure
         this.Fx = 0; 
         this.Fy = 0;
-    
-        this.update = function(dt) {
-            this.x += this.Vx * dt;
-            this.y += this.Vy * dt
-        }
+
+        // Note that making these properties into an array did not improve performance,
+        // at least not as benchmarked in Chrome.
 
         this.reset = function() {
             this.Fx = 0;
@@ -102,7 +100,7 @@ let Engine = (function() {
         }
     }
 
-    let particles;
+    let particles = [];
     let grid;
 
     let h = 1;     // smoothing length
