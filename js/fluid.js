@@ -25,8 +25,17 @@ let fluidParams = {
 
 function init() {
     createScene();
+    attachToDocument();
     setNumParticles(fluidParams['NumParticles']);
     addGUI();
+    doLoop();
+}
+
+function reinit() {
+    initialOrientation = screen.orientation.angle;
+    computeWindowArea();
+    engine.init(screen.width, screen.height, left, right, bottom, top);
+    setNumParticles(fluidParams['NumParticles']);
     doLoop();
 }
 
@@ -50,7 +59,9 @@ function createScene() {
 
     scene = new THREE.Scene();
     renderer.render(scene, camera);
+}
 
+function attachToDocument() {
     document.body.appendChild( renderer.domElement );
 
     window.addEventListener('resize', handleWindowResize, false);
@@ -90,22 +101,9 @@ function handleWindowResize() {
     let aspectRatio = width/height;
 
     let angleDiff = screen.orientation.angle - initialOrientation;
-    if (angleDiff == 90) {
-        engine.resize(bottom, top, left, right);
-        camera.rotation.z = Math.PI/2;
-        camera.position.x = height;
-        camera.position.y = 0;
-    } else if (angleDiff == -90) {
-        engine.resize(bottom, top, left, right);
-        camera.rotation.z = -Math.PI/2;
-        camera.position.x = 0;
-        camera.position.y = width;
-    } else if (Math.abs(angleDiff) == 180) {
-        engine.resize(left, right, bottom, top);
-        renderer.setSize(width * zoomX, height * zoomY);
-        camera.rotation.z = Math.PI;
-        camera.position.x = width;
-        camera.position.y = height;
+    if (Math.abs(angleDiff) > 1) {
+        reinit();
+        // TODO when ScreenOrientation.lock() API is more mature, lock it
     } else {
         engine.resize(left, right, bottom, top);
         renderer.setSize(width * zoomX, height * zoomY);

@@ -308,6 +308,8 @@ let Engine = (function() {
             let numGridCellsY = Math.floor(ylimit / gridCellSize);
             grid = new Grid();
             grid.init(numGridCellsX, numGridCellsY, xlimit, ylimit);
+
+            particles = []
         },
 
         resize: function(left, right, bottom, top) {
