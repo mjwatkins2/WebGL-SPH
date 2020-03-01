@@ -348,6 +348,10 @@ let Engine = (function() {
             UpdatePosition(dT * 0.001);
         },
 
+        unpause : function() {
+            lastTime = performance.now();
+        },
+
         getParticlePosition: function(i, position) {
             let p = particles[i];
             position.x = p.x * domainScale;

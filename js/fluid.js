@@ -10,6 +10,7 @@ let material, circle, meshes;
 let left, right, bottom, top, zoomX, zoomY;
 let initialOrientation;
 let windowMovementInterval = -1;
+let paused = false;
 let gui = new GUI();
 let fluidParams = {
     NumParticles: 1000,
@@ -74,7 +75,10 @@ function attachToDocument() {
 }
 
 function handleVisibilityChange(e) {
-    console.log('handleVisibilityChange: ' + document.hidden);
+    if (paused && !document.hidden) {
+        engine.unpause();
+    }
+    paused = document.hidden;
 }
 
 function handleMouseOut(e){
