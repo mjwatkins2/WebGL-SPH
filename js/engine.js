@@ -308,6 +308,8 @@ let Engine = (function() {
             let numGridCellsY = Math.floor(ylimit / gridCellSize);
             grid = new Grid();
             grid.init(numGridCellsX, numGridCellsY, xlimit, ylimit);
+
+            particles = []
         },
 
         resize: function(left, right, bottom, top) {
@@ -344,6 +346,10 @@ let Engine = (function() {
             let dT = now - lastTime;
             lastTime = now;
             UpdatePosition(dT * 0.001);
+        },
+
+        unpause : function() {
+            lastTime = performance.now();
         },
 
         getParticlePosition: function(i, position) {
