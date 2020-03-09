@@ -1,6 +1,6 @@
 # Smoothed Particle Hydrodynamics (SPH) Fluid Simulation with WebGL
 
-I made this to try to learn something about interactive web development. This was primarily tested on Google Chrome; to increase performance on other browsers or older mobile devices, decrease the number of particles and/or set the rest density to zero.
+I made this to try to learn something about interactive web development. This was primarily tested on Google Chrome; to increase performance on other browsers or older mobile devices, decrease the number of particles and/or set the rest density to zero. If performance is bad or the fluid behavior is super crazy, update Chrome -- I've noticed sometimes Chrome updates can cause performance issues which subsequent updates fix.
 
 **See a live demo here:** https://mjwatkins2.github.io/WebGL-SPH/ 
 
