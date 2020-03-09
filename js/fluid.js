@@ -32,8 +32,12 @@ function init() {
     doLoop();
 }
 
+function defaultOrientation() {
+    this.angle = 0;
+}
+
 function reinit() {
-    initialOrientation = screen.orientation.angle;
+    initialOrientation = (screen.orientation || defaultOrientation).angle;
     computeWindowArea();
     engine.init(screen.width, screen.height, left, right, bottom, top);
     setNumParticles(fluidParams['NumParticles']);
@@ -41,7 +45,7 @@ function reinit() {
 }
 
 function createScene() {
-    initialOrientation = screen.orientation.angle;
+    initialOrientation = (screen.orientation || defaultOrientation).angle;
     computeWindowArea();
     engine.init(screen.width, screen.height, left, right, bottom, top);
 
@@ -104,7 +108,7 @@ function handleWindowResize() {
     let height = top-bottom;
     let aspectRatio = width/height;
 
-    let angleDiff = screen.orientation.angle - initialOrientation;
+    let angleDiff = (screen.orientation || defaultOrientation).angle - initialOrientation;
     if (Math.abs(angleDiff) > 1) {
         reinit();
         // TODO when ScreenOrientation.lock() API is more mature, lock it
